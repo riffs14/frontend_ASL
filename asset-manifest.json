@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/frontend_ASL/static/css/main.2a4655fc.css",
-    "main.js": "/frontend_ASL/static/js/main.209fda32.js",
+    "main.js": "/frontend_ASL/static/js/main.ffb1518b.js",
     "static/js/453.4bccd918.chunk.js": "/frontend_ASL/static/js/453.4bccd918.chunk.js",
     "index.html": "/frontend_ASL/index.html",
     "main.2a4655fc.css.map": "/frontend_ASL/static/css/main.2a4655fc.css.map",
-    "main.209fda32.js.map": "/frontend_ASL/static/js/main.209fda32.js.map",
+    "main.ffb1518b.js.map": "/frontend_ASL/static/js/main.ffb1518b.js.map",
     "453.4bccd918.chunk.js.map": "/frontend_ASL/static/js/453.4bccd918.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.2a4655fc.css",
-    "static/js/main.209fda32.js"
+    "static/js/main.ffb1518b.js"
   ]
 }

@@ -1,10 +1,8 @@
-// src/components/Home.js
-
 import React, { useEffect, useState } from 'react';
 import { db } from '../firebase'; // Import db from the updated firebase.js
 import { collection, getDocs } from "firebase/firestore";
 import PieChart from './PieChart'; // Import the PieChart component
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom'; // Use useNavigate from React Router v6
 import { auth } from '../firebase'; // Firebase authentication import
 
 const Home = () => {
@@ -12,16 +10,36 @@ const Home = () => {
   const [totalAmountThisMonth, setTotalAmountThisMonth] = useState(0);
   const [totalCashThisMonth, setTotalCashThisMonth] = useState(0);
   const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const navigate = useNavigate(); // Initialize useNavigate hook for programmatic navigation
 
   // Fetch Active Students Count and Booking Data
   useEffect(() => {
-    if (!auth.currentUser) return; // Redirect to login if user is not logged in
-    
-    const fetchData = async () => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (!user) {
+        // Redirect to login if user is not logged in
+        navigate('/login');
+      } else {
+        // Proceed to fetch data if the user is logged in
+        fetchData();
+      }
+    });
+
+    return () => unsubscribe(); // Cleanup the subscription when the component unmounts
+  }, [navigate]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Fetch student data
       const studentSnapshot = await getDocs(collection(db, 'students'));
       const studentData = studentSnapshot.docs.map(doc => doc.data());
       
-      // Fetch Booking Data for statistics
+      // Fetch booking data
       const bookingSnapshot = await getDocs(collection(db, 'bookings'));
       const currentMonth = new Date().getMonth();
       const currentYear = new Date().getFullYear();
@@ -44,10 +62,21 @@ const Home = () => {
       setTotalAmountThisMonth(totalAmount);
       setTotalCashThisMonth(totalCash);
       setStudents(studentData); // Set the students data for the pie chart
-    };
+    } catch (err) {
+      setError('Failed to fetch data. Please try again later.');
+      console.error("Error fetching data: ", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchData();
-  }, []);
+  if (loading) {
+    return <div>Loading...</div>; // Loading message
+  }
+
+  if (error) {
+    return <div>{error}</div>; // Error message
+  }
 
   return (
     <div>

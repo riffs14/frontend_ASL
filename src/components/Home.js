@@ -1,8 +1,11 @@
+// src/components/Home.js
+
 import React, { useEffect, useState } from 'react';
 import { db } from '../firebase'; // Import db from the updated firebase.js
 import { collection, getDocs } from "firebase/firestore";
 import PieChart from './PieChart'; // Import the PieChart component
 import { Link } from 'react-router-dom';
+import { auth } from '../firebase'; // Firebase authentication import
 
 const Home = () => {
   const [activeStudentsCount, setActiveStudentsCount] = useState(0);
@@ -12,6 +15,8 @@ const Home = () => {
 
   // Fetch Active Students Count and Booking Data
   useEffect(() => {
+    if (!auth.currentUser) return; // Redirect to login if user is not logged in
+    
     const fetchData = async () => {
       const studentSnapshot = await getDocs(collection(db, 'students'));
       const studentData = studentSnapshot.docs.map(doc => doc.data());

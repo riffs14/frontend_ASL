@@ -11,6 +11,8 @@ const Home = () => {
   const [totalCashThisMonth, setTotalCashThisMonth] = useState(0);
   const [students, setStudents] = useState([]);
   const [totalTransferredAmount, setTotalTransferredAmount] = useState(0); // New state for transferred amount
+  const [expiredStudentsCount, setExpiredStudentsCount] = useState(0); // New state for expired students count
+  const [fullShiftExpiredCount, setFullShiftExpiredCount] = useState(0); // New state for full shift expired students count
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -73,11 +75,26 @@ const Home = () => {
         }
       });
 
+      // Additional Stats:
+      const currentDate = new Date();
+
+      const expiredStudents = studentData.filter(student => {
+        const validDate = new Date(student.valid_upto.split('/').reverse().join('-'));
+        return validDate < currentDate;
+      });
+
+      const fullShiftExpired = studentData.filter(student => {
+        const validDate = new Date(student.valid_upto.split('/').reverse().join('-'));
+        return validDate < currentDate && student.shift_name === "Full Shift" && student.active === 1;
+      });
+
       setActiveStudentsCount(studentData.filter(student => student.active === 1).length);
       setTotalAmountThisMonth(totalAmount);
       setTotalCashThisMonth(totalCash);
       setStudents(studentData); // Set the students data for the pie chart
       setTotalTransferredAmount(totalVerifiedAmount); // Set the total transferred amount
+      setExpiredStudentsCount(expiredStudents.length); // Set expired students count
+      setFullShiftExpiredCount(fullShiftExpired.length); // Set full shift expired students count
     } catch (err) {
       setError('Failed to fetch data. Please try again later.');
       console.error("Error fetching data: ", err);
@@ -95,28 +112,60 @@ const Home = () => {
   }
 
   return (
-    <div>
-      <h1>General Statistics</h1>
-      <div className="statistics">
-        <p><strong>Active Students:</strong> {activeStudentsCount}</p>
-        <p><strong>Total Amount Collected This Month:</strong> {totalAmountThisMonth}</p>
-        <p><strong>Total Cash Collected This Month:</strong> {totalCashThisMonth}</p>
-        <p><strong>Total Transferred Amount This Month:</strong> {totalTransferredAmount}</p> {/* New stat */}
-        <p><strong>Cash Amount Due:</strong> {totalCashThisMonth-totalTransferredAmount}</p> {/* New stat */}
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: '20px' }}>
+      <div style={{ flex: 1, maxWidth: '600px' }}>
+        <h1>General Statistics</h1>
+
+        {/* Statistics Table */}
+        <table style={{ width: '100%', margin: 'auto', textAlign: 'left', borderCollapse: 'collapse', border: '1px solid #ddd' }}>
+          <thead>
+            <tr>
+              <th style={{ padding: '10px', border: '1px solid #ddd' }}>General Statistics</th>
+              <th style={{ padding: '10px', border: '1px solid #ddd' }}>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style={{ padding: '10px', border: '1px solid #ddd' }}>Total Active Students</td>
+              <td style={{ padding: '10px', border: '1px solid #ddd' }}>{activeStudentsCount}</td>
+            </tr>
+            <tr>
+              <td style={{ padding: '10px', border: '1px solid #ddd' }}>Total Amount Collected This Month</td>
+              <td style={{ padding: '10px', border: '1px solid #ddd' }}>{totalAmountThisMonth}</td>
+            </tr>
+            <tr>
+              <td style={{ padding: '10px', border: '1px solid #ddd' }}>Total Cash Collected This Month</td>
+              <td style={{ padding: '10px', border: '1px solid #ddd' }}>{totalCashThisMonth}</td>
+            </tr>
+            <tr>
+              <td style={{ padding: '10px', border: '1px solid #ddd' }}>Total Transferred Amount This Month</td>
+              <td style={{ padding: '10px', border: '1px solid #ddd' }}>{totalTransferredAmount}</td>
+            </tr>
+            <tr>
+              <td style={{ padding: '10px', border: '1px solid #ddd' }}>Cash Amount Due</td>
+              <td style={{ padding: '10px', border: '1px solid #ddd' }}>{totalCashThisMonth - totalTransferredAmount}</td>
+            </tr>
+            <tr>
+              <td style={{ padding: '10px', border: '1px solid #ddd' }}>Total Students Expired</td>
+              <td style={{ padding: '10px', border: '1px solid #ddd' }}>{expiredStudentsCount}</td>
+            </tr>
+            <tr>
+              <td style={{ padding: '10px', border: '1px solid #ddd' }}>Full Shift Expired</td>
+              <td style={{ padding: '10px', border: '1px solid #ddd' }}>{fullShiftExpiredCount}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       {/* Pie Chart for Student Distribution by Shift */}
-      <div className="pie-chart-container">
-        <PieChart students={students} />
+      <div style={{ flex: 1 }}>
+        <div className="pie-chart-container">
+          <PieChart students={students} />
+        </div>
       </div>
 
       <br />
-      <button>
-        <Link to="/bookings">Go to Bookings</Link>
-      </button>
-      <button>
-        <Link to="/students">Go to Students</Link>
-      </button>
+    
     </div>
   );
 };

@@ -1,0 +1,29 @@
+/* src/components/ExpiredMembersPage.css */
+
+.expired-members-page {
+  padding: 20px;
+}
+
+.expired-members-page table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.expired-members-page th, .expired-members-page td {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.expired-members-page button {
+  background-color: #25D366;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.expired-members-page button:hover {
+  background-color: #128C7E;
+}

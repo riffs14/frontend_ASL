@@ -4,8 +4,8 @@ import './App.css';
 import Sidebar from './components/Sidebar';
 import BookingTable from './components/BookingTable';
 import StudentsPage from './components/StudentsPage';
-import Home from './components/Home'; 
-import Login from './components/Login'; // Make sure to have a login component
+import Home from './components/Home';
+import ExpensesTable from './components/ExpensesTable'; // Import the ExpensesTable component
 
 function App() {
   return (
@@ -18,7 +18,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/bookings" element={<BookingTable />} />
             <Route path="/students" element={<StudentsPage />} />
-            <Route path="/login" element={<Login />} />
+            <Route path="/expenses" element={<ExpensesTable />} /> {/* Add route for ExpensesTable */}
           </Routes>
         </div>
       </div>

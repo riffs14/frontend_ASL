@@ -107,6 +107,7 @@ const BookingTable = () => {
         <thead>
           <tr>
             <th>Serial No.</th>
+            <th>Booking ID</th> {/* Added Booking ID column */}
             <th>Date</th>
             <th>Amount</th>
             <th>Cash</th>
@@ -123,6 +124,7 @@ const BookingTable = () => {
           {filteredBookings.map((booking, index) => (
             <tr key={booking.id}>
               <td>{index + 1}</td> {/* Serial number starts from 1 */}
+              <td>{booking.id}</td> {/* Display Booking ID */}
               <td>{booking.booking_date}</td>
               <td>{booking.amount}</td>
               <td>{booking.cash}</td>
@@ -147,6 +149,7 @@ const BookingTable = () => {
         <div className="modal">
           <div className="modal-content">
             <h2>Confirm Verification</h2>
+            <p><strong>Booking ID:</strong> {selectedBooking.id}</p> {/* Display Booking ID in the dialog */}
             <p><strong>Booking Date:</strong> {selectedBooking.booking_date}</p>
             <p><strong>Amount:</strong> {selectedBooking.amount}</p>
             <p><strong>Cash:</strong> {selectedBooking.cash}</p>

@@ -24,6 +24,19 @@ const StudentsPage = () => {
     return dateObj.getMonth() === currentMonth && dateObj.getFullYear() === currentYear;
   };
 
+  // Helper function to check if the last toggle date is in the current month
+  const isLastToggleThisMonth = (timestamp) => {
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+
+    if (timestamp) {
+      const toggleDate = timestamp.toDate(); // Convert Firestore Timestamp to Date
+      return toggleDate.getMonth() === currentMonth && toggleDate.getFullYear() === currentYear;
+    }
+
+    return false;
+  };
+
   // Fetch student data from Firestore
   useEffect(() => {
     const fetchData = async () => {
@@ -49,6 +62,13 @@ const StudentsPage = () => {
     return active === 1 ? 'green' : 'red';
   };
 
+  // Function to format timestamp as a readable date
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return 'N/A';
+    const date = timestamp.toDate(); // Convert Firestore timestamp to Date
+    return date.toLocaleDateString(); // Convert to a human-readable date
+  };
+
   // Handle filter change
   const handleFilterChange = (filterType) => {
     setFilter(filterType);
@@ -57,7 +77,11 @@ const StudentsPage = () => {
       setFilteredStudents(students.filter(student => isThisMonth(student.joining_date)));
     } else if (filterType === 'droppedThisMonth') {
       setFilteredStudents(
-        students.filter(student => isThisMonth(student.toggle_date) && student.active === 0)
+        students.filter(student => student.active === 0 && isLastToggleThisMonth(student.last_active_toggle))
+      );
+    } else if (filterType === 'allDropped') {
+      setFilteredStudents(
+        students.filter(student => student.active === 0) // Show all inactive students
       );
     } else {
       setFilteredStudents(students); // Show all students
@@ -72,6 +96,7 @@ const StudentsPage = () => {
       <div>
         <button onClick={() => handleFilterChange('registeredThisMonth')}>Students Registered This Month</button>
         <button onClick={() => handleFilterChange('droppedThisMonth')}>Students Dropped This Month</button>
+        <button onClick={() => handleFilterChange('allDropped')}>All Dropped Students</button> {/* New button */}
         <button onClick={() => handleFilterChange('all')}>Show All Students</button>
       </div>
 
@@ -88,6 +113,8 @@ const StudentsPage = () => {
             <th>Shift End</th>
             <th>Valid Upto</th>
             <th>Status</th>
+            <th>Drop Reason</th> {/* Added Drop Reason column */}
+            <th>Last Toggle Date</th> {/* Added Last Toggle Date column */}
           </tr>
         </thead>
         <tbody>
@@ -103,6 +130,8 @@ const StudentsPage = () => {
               <td>{student.shift_end}</td> {/* Display shift end */}
               <td>{student.valid_upto}</td> {/* Display valid upto */}
               <td>{student.active === 1 ? 'Active' : 'Inactive'}</td>
+              <td>{student.drop_reason || 'N/A'}</td> {/* Show drop_reason or N/A if not present */}
+              <td>{formatTimestamp(student.last_active_toggle)}</td> {/* Format and display last toggle date */}
             </tr>
           ))}
         </tbody>

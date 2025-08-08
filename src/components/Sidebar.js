@@ -11,6 +11,7 @@ const Sidebar = () => {
         <li><Link to="/bookings">Bookings</Link></li>
         <li><Link to="/students">Students</Link></li>
         <li><Link to="/expenses">Expenses</Link></li> {/* Added link to Expenses */}
+        <li><Link to="/expired-members">Expired Members</Link></li> {/* New link */}
       </ul>
     </div>
   );

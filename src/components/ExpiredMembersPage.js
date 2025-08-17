@@ -1,44 +1,47 @@
 // src/components/ExpiredMembersPage.js
 
 import React, { useEffect, useState } from 'react';
-import { db } from '../firebase'; // Import db from the updated firebase.js
-import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../firebase';
+import { collection, getDocs, query, where } from 'firebase/firestore'; // ⬅️ add query, where
 import { Link } from 'react-router-dom';
 
 const ExpiredMembersPage = () => {
   const [students, setStudents] = useState([]);
   const [expiredStudents, setExpiredStudents] = useState([]);
 
-  // Helper function to convert "DD/MM/YYYY" to Date
   const parseDate = (dateString) => {
     if (!dateString) return null;
     const [day, month, year] = dateString.split('/');
-    return new Date(year, month - 1, day); // Month is zero-indexed
+    const d = new Date(year, month - 1, day);
+    if (isNaN(d)) return null;
+    // Optional: make it valid through end-of-day
+    d.setHours(23, 59, 59, 999);
+    return d;
   };
 
-  // Helper function to check if the student's membership has expired
   const isExpired = (validUpto) => {
     const validUntilDate = parseDate(validUpto);
-    return validUntilDate && validUntilDate < new Date(); // Check if expired
+    return validUntilDate && validUntilDate < new Date();
   };
 
-  // Fetch student data from Firestore
   useEffect(() => {
     const fetchData = async () => {
-      const studentSnapshot = await getDocs(collection(db, 'students'));
-      const studentData = studentSnapshot.docs.map((doc) => doc.data());
+      // Only fetch ACTIVE students (active == 1)
+      const q = query(collection(db, 'students'), where('active', '==', 1));
+      const snap = await getDocs(q);
 
-      // Filter the expired students
-      const expiredData = studentData.filter((student) => isExpired(student.valid_upto));
-      
+      const studentData = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+      // From active students, show only expired
+      const expiredData = studentData.filter((s) => isExpired(s.valid_upto));
+
       setStudents(studentData);
-      setExpiredStudents(expiredData); // Only show expired students
+      setExpiredStudents(expiredData);
     };
 
     fetchData();
   }, []);
 
-  // Function to send a WhatsApp message
   const sendWhatsAppMessage = (phone, name) => {
     const message = `Hello ${name},\n\nThank you for being a member! This is a gentle reminder to settle your fee dues. We would appreciate it if you could make the payment as soon as possible. Thank you!`;
     const encodedMessage = encodeURIComponent(message);
@@ -63,7 +66,7 @@ const ExpiredMembersPage = () => {
           </thead>
           <tbody>
             {expiredStudents.map((student, index) => (
-              <tr key={index}>
+              <tr key={student.id || index}>
                 <td>{index + 1}</td>
                 <td>{student.receipt_number || 'N/A'}</td>
                 <td>{student.name}</td>

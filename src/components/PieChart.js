@@ -32,7 +32,7 @@ const PieChart = ({ students }) => {
   }, [students]);
 
   return (
-    <div>
+    <div style={{ minWidth: '400px' }}> {/* Set minWidth to prevent title wrapping */}
       <h2>Student Distribution by Shift</h2>
       {Object.keys(chartData).length > 0 && (
         <Pie data={chartData} options={{ responsive: true, plugins: { legend: { position: 'top' } } }} />

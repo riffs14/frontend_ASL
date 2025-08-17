@@ -114,8 +114,8 @@ tr {
 /* Positioning Pie Chart in the Top Right Corner */
 .pie-chart-container {
   position: absolute;
-  top: 20px;
-  right: 20px;
+  top: 40px;
+  right: 250px;
   width: 250px; /* Reduced width */
   height: 250px; /* Reduced height */
   max-width: 100%;

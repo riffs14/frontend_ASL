@@ -1,104 +1,136 @@
 import React, { useEffect, useState } from 'react';
-import { db } from '../firebase'; // Import db from the updated firebase.js
-import { collection, getDocs, updateDoc, doc } from "firebase/firestore"; // Firestore methods
-import { Link } from 'react-router-dom'; // Link for routing
-import { auth } from '../firebase'; // Firebase authentication import
+import { db, auth } from '../firebase';
+import { collection, getDocs, updateDoc, doc, addDoc } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
 const ExpensesTable = () => {
   const [expenses, setExpenses] = useState([]);
   const [filteredExpenses, setFilteredExpenses] = useState([]);
-  const [filter, setFilter] = useState('all'); // Track the active filter
-  const [showDialog, setShowDialog] = useState(false); // For displaying the modal
-  const [selectedExpense, setSelectedExpense] = useState(null); // For storing selected expense
+  const [filter, setFilter] = useState('all');
+  const [showDialog, setShowDialog] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch expenses data from Firestore
+  // Helper: parse dd/mm/yyyy or mm/dd/yyyy safely (your data shows dd/mm/yyyy)
+  const parseExpenseDate = (str) => {
+    if (!str || typeof str !== 'string') return null;
+    const parts = str.split('/');
+    if (parts.length !== 3) return new Date(str); // fallback
+    const [dd, mm, yyyy] = parts.map(p => parseInt(p, 10));
+    if (Number.isNaN(dd) || Number.isNaN(mm) || Number.isNaN(yyyy)) return new Date(str);
+    return new Date(yyyy, mm - 1, dd);
+  };
+
   useEffect(() => {
-    if (!auth.currentUser) return; // If no user is logged in, return
-    const fetchData = async () => {
-      setLoading(true);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setError(null);
+
       try {
-        const expenseSnapshot = await getDocs(collection(db, 'expenses'));
-        const expenseData = expenseSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-        setExpenses(expenseData);
-        setFilteredExpenses(expenseData); // Initially show all expenses
+        setLoading(true);
+        const snapshot = await getDocs(collection(db, 'expenses'));
+        const data = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+        setExpenses(data);
+        setFilteredExpenses(data); // default: all
       } catch (err) {
+        console.error('Error fetching data:', err);
         setError('Error fetching data.');
-        console.error("Error fetching data:", err);
       } finally {
         setLoading(false);
       }
-    };
+    });
 
-    fetchData();
+    return () => unsubscribe();
   }, []);
 
-  // Update verified status of an expense
-  const handleVerify = async (expenseId) => {
-    setSelectedExpense(expenses.find(exp => exp.id === expenseId)); // Find and store the selected expense
-    setShowDialog(true); // Show the dialog
+  const handleVerify = (expenseId) => {
+    const item = expenses.find(exp => exp.id === expenseId) || null;
+    setSelectedExpense(item);
+    setShowDialog(true);
   };
 
   const handleConfirmVerification = async () => {
     if (selectedExpense) {
-      const expenseRef = doc(db, 'expenses', selectedExpense.id);
-      await updateDoc(expenseRef, { verified: 1 }); // Update the verified field to 1
+      try {
+        const expenseRef = doc(db, 'expenses', selectedExpense.id);
+        await updateDoc(expenseRef, { verified: 1 });
 
-      // Update the local state to reflect the verification change
-      setExpenses((prevExpenses) => 
-        prevExpenses.map((expense) =>
-          expense.id === selectedExpense.id ? { ...expense, verified: 1 } : expense
-        )
-      );
-      setFilteredExpenses((prevExpenses) => 
-        prevExpenses.map((expense) =>
-          expense.id === selectedExpense.id ? { ...expense, verified: 1 } : expense
-        )
-      );
+        // Add the expense to masterExpense table if the category is "Expense"
+        if (selectedExpense.category === 'Expense') {
+          const masterExpenseRef = collection(db, 'masterExpense');
+          await addDoc(masterExpenseRef, {
+            amount: selectedExpense.amount,
+            category: selectedExpense.category,
+            description: selectedExpense.description,
+            expense_date: selectedExpense.expense_date,
+            verified: 1, // Mark as verified
+            owner:"staff"
+          });
+          console.log('Expense added to masterExpense table.');
+        }
+
+        const updater = (list) =>
+          list.map(e => e.id === selectedExpense.id ? { ...e, verified: 1 } : e);
+
+        setExpenses(updater);
+        setFilteredExpenses(updater);
+      } catch (err) {
+        console.error('Error updating verification:', err);
+        setError('Failed to verify expense. Try again.');
+      }
     }
-    setShowDialog(false); // Close the dialog after verification
+    setShowDialog(false);
   };
 
-  // Filter expenses based on the selected filter
   const handleFilterChange = (filterType) => {
     setFilter(filterType);
 
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const inThisMonth = (expense) => {
+      const dt = parseExpenseDate(expense.expense_date);
+      if (!(dt instanceof Date) || isNaN(dt)) return false;
+      return dt.getMonth() === currentMonth && dt.getFullYear() === currentYear;
+    };
 
     if (filterType === 'expensesThisMonth') {
-      setFilteredExpenses(
-        expenses.filter(expense => {
-          const expenseDate = new Date(expense.expense_date.split('/').reverse().join('-'));
-          return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
-        })
-      );
+      setFilteredExpenses(expenses.filter(inThisMonth));
     } else if (filterType === 'unverifiedThisMonth') {
-      setFilteredExpenses(
-        expenses.filter(expense => {
-          const expenseDate = new Date(expense.expense_date.split('/').reverse().join('-'));
-          return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear && expense.verified === 0;
-        })
-      );
+      setFilteredExpenses(expenses.filter(e => inThisMonth(e) && Number(e.verified) === 0));
     } else {
-      setFilteredExpenses(expenses); // Show all expenses
+      setFilteredExpenses(expenses);
     }
   };
 
   if (loading) return <div>Loading...</div>;
-  if (error) return <div>{error}</div>;
+  if (error)   return <div>{error}</div>;
 
   return (
     <div>
       <h1>Expenses Details</h1>
-      
+
       {/* Filter Buttons */}
-      <div>
-        <button onClick={() => handleFilterChange('expensesThisMonth')}>Expenses This Month</button>
-        <button onClick={() => handleFilterChange('unverifiedThisMonth')}>Unverified Expenses This Month</button>
-        <button onClick={() => handleFilterChange('all')}>Show All Expenses</button>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <button
+          onClick={() => handleFilterChange('expensesThisMonth')}
+          disabled={filter === 'expensesThisMonth'}
+        >
+          Expenses This Month
+        </button>
+        <button
+          onClick={() => handleFilterChange('unverifiedThisMonth')}
+          disabled={filter === 'unverifiedThisMonth'}
+        >
+          Unverified Expenses This Month
+        </button>
+        <button
+          onClick={() => handleFilterChange('all')}
+          disabled={filter === 'all'}
+        >
+          Show All Expenses
+        </button>
       </div>
 
       <table>
@@ -121,9 +153,9 @@ const ExpensesTable = () => {
               <td>{expense.category}</td>
               <td>{expense.description}</td>
               <td>{expense.expense_date}</td>
-              <td>{expense.verified === 0 ? 'Unverified' : 'Verified'}</td>
+              <td>{Number(expense.verified) === 0 ? 'Unverified' : 'Verified'}</td>
               <td>
-                {expense.verified === 0 && (
+                {Number(expense.verified) === 0 && (
                   <button onClick={() => handleVerify(expense.id)}>Verify</button>
                 )}
               </td>
@@ -133,7 +165,7 @@ const ExpensesTable = () => {
       </table>
 
       {/* Confirmation Dialog */}
-      {showDialog && (
+      {showDialog && selectedExpense && (
         <div className="modal">
           <div className="modal-content">
             <h2>Confirm Verification</h2>
@@ -141,8 +173,11 @@ const ExpensesTable = () => {
             <p><strong>Amount:</strong> {selectedExpense.amount}</p>
             <p><strong>Category:</strong> {selectedExpense.category}</p>
             <p><strong>Description:</strong> {selectedExpense.description}</p>
-            <p><strong>Verified:</strong> {selectedExpense.verified === 1 ? 'Verified' : 'Unverified'}</p>
-            <div>
+            <p>
+              <strong>Verified:</strong>{' '}
+              {Number(selectedExpense.verified) === 1 ? 'Verified' : 'Unverified'}
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
               <button onClick={handleConfirmVerification}>Confirm</button>
               <button onClick={() => setShowDialog(false)}>Cancel</button>
             </div>

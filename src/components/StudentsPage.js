@@ -6,13 +6,24 @@ import { Link } from 'react-router-dom';
 const StudentsPage = () => {
   const [students, setStudents] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState([]);
-  const [filter, setFilter] = useState('all'); // Track the active filter type
 
   // Helper function to convert "DD/MM/YYYY" to Date
   const parseDate = (dateString) => {
-    if (!dateString) return null; // Ensure the date string is not undefined or null
+    if (!dateString) return null;
     const [day, month, year] = dateString.split('/');
     return new Date(year, month - 1, day); // Month is zero-indexed
+  };
+
+  // Function to determine student status color (Active = green, Inactive = red)
+  const getStatusColor = (active) => {
+    return active === 1 ? 'green' : 'red';
+  };
+
+  // Function to format timestamp as a readable date
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return 'N/A';
+    const date = timestamp.toDate(); // Convert Firestore timestamp to Date
+    return date.toLocaleDateString(); // Convert to a human-readable date
   };
 
   // Helper function to check if the date is in the current month
@@ -41,7 +52,10 @@ const StudentsPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       const studentSnapshot = await getDocs(collection(db, 'students'));
-      let studentData = studentSnapshot.docs.map(doc => doc.data());
+      let studentData = studentSnapshot.docs.map(doc => ({
+        id: doc.id, // Add the document ID
+        ...doc.data(), // Include all other student data
+      }));
 
       // Sort the students based on 'receipt_number' in descending order
       studentData.sort((a, b) => {
@@ -57,22 +71,8 @@ const StudentsPage = () => {
     fetchData();
   }, []);
 
-  // Function to determine student status color
-  const getStatusColor = (active) => {
-    return active === 1 ? 'green' : 'red';
-  };
-
-  // Function to format timestamp as a readable date
-  const formatTimestamp = (timestamp) => {
-    if (!timestamp) return 'N/A';
-    const date = timestamp.toDate(); // Convert Firestore timestamp to Date
-    return date.toLocaleDateString(); // Convert to a human-readable date
-  };
-
   // Handle filter change
   const handleFilterChange = (filterType) => {
-    setFilter(filterType);
-
     if (filterType === 'registeredThisMonth') {
       setFilteredStudents(students.filter(student => isThisMonth(student.joining_date)));
     } else if (filterType === 'droppedThisMonth') {
@@ -96,7 +96,7 @@ const StudentsPage = () => {
       <div>
         <button onClick={() => handleFilterChange('registeredThisMonth')}>Students Registered This Month</button>
         <button onClick={() => handleFilterChange('droppedThisMonth')}>Students Dropped This Month</button>
-        <button onClick={() => handleFilterChange('allDropped')}>All Dropped Students</button> {/* New button */}
+        <button onClick={() => handleFilterChange('allDropped')}>All Dropped Students</button>
         <button onClick={() => handleFilterChange('all')}>Show All Students</button>
       </div>
 
@@ -104,42 +104,43 @@ const StudentsPage = () => {
         <thead>
           <tr>
             <th>Serial No.</th>
-            <th>Receipt No.</th> {/* Added Receipt Number column */}
+            <th>Student ID</th>
+            <th>Receipt No.</th>
             <th>Name</th>
             <th>Phone</th>
             <th>Address</th>
             <th>Shift</th>
-            <th>Shift Start</th>
-            <th>Shift End</th>
             <th>Valid Upto</th>
-            <th>Status</th>
-            <th>Drop Reason</th> {/* Added Drop Reason column */}
-            <th>Last Toggle Date</th> {/* Added Last Toggle Date column */}
+            <th>Amount</th>
+            <th>Drop Reason</th>
+            <th>Last Toggle Date</th>
+            <th>Action</th> {/* Modify column */}
           </tr>
         </thead>
         <tbody>
           {filteredStudents.map((student, index) => (
-            <tr key={index} style={{ backgroundColor: getStatusColor(student.active) }}>
+            <tr key={student.id} style={{ backgroundColor: getStatusColor(student.active) }}>
+              
               <td>{index + 1}</td> {/* Serial number starts from 1 */}
+              <td>{student.id}</td> {/* Display the Firestore document ID */}
               <td>{student.receipt_number || 'N/A'}</td> {/* Display Receipt Number, or N/A if not present */}
               <td>{student.name}</td>
               <td>{student.phone}</td>
               <td>{student.address}</td>
-              <td>{student.shift_name}</td> {/* Display shift name */}
-              <td>{student.shift_start}</td> {/* Display shift start */}
-              <td>{student.shift_end}</td> {/* Display shift end */}
-              <td>{student.valid_upto}</td> {/* Display valid upto */}
-              <td>{student.active === 1 ? 'Active' : 'Inactive'}</td>
-              <td>{student.drop_reason || 'N/A'}</td> {/* Show drop_reason or N/A if not present */}
+              <td>{student.shift_name}</td>
+              <td>{student.valid_upto}</td>
+              <td>{student.final_amount}</td>
+              <td>{student.drop_reason || 'N/A'}</td>
               <td>{formatTimestamp(student.last_active_toggle)}</td> {/* Format and display last toggle date */}
+              <td>
+                <button>
+                  <Link to={`/edit-student/${student.id}`} style={{ textDecoration: 'none', color: 'white' }}>Modify</Link>
+                </button> {/* Modify button */}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
-      <br />
-      <button>
-        <Link to="/">Back to Home</Link>
-      </button>
     </div>
   );
 };

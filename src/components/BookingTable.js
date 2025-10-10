@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '../firebase'; // Import db from your firebase.js
 import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 
@@ -35,9 +35,9 @@ const BookingTable = () => {
         return {
           id: doc.id,
           booking_date: data.booking_date,
-          amount: data.amount,
-          cash: data.cash,
-          online: data.online,
+          amount: Number(data.amount) || 0,
+          cash: Number(data.cash) || 0,
+          online: Number(data.online) || 0,
           verified: data.verified,
           student_name: student ? student.name : 'N/A',
           valid_upto: student ? student.valid_upto : 'N/A',
@@ -99,7 +99,7 @@ const BookingTable = () => {
 
     const from = new Date(fromDate);
     const to = new Date(toDate);
-    to.setHours(23, 59, 59, 999); // include the full "to" date
+    to.setHours(23, 59, 59, 999);
 
     const filtered = bookings.filter(booking => {
       const bookingDate = new Date(booking.booking_date.split('/').reverse().join('-'));
@@ -110,12 +110,39 @@ const BookingTable = () => {
     setFilter('dateRange');
   };
 
+  // ✅ Calculate totals dynamically for filtered bookings
+  const { totalAmount, totalCash, totalOnline } = useMemo(() => {
+    let total = 0, cash = 0, online = 0;
+    filteredBookings.forEach(b => {
+      total += b.amount || 0;
+      cash += b.cash || 0;
+      online += b.online || 0;
+    });
+    return { totalAmount: total, totalCash: cash, totalOnline: online };
+  }, [filteredBookings]);
+
   return (
     <div>
-      <h1>Booking Details</h1>
+      {/* Header Section with totals */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1>Booking Details</h1>
+        <div style={{
+          display: 'flex',
+          gap: '15px',
+          backgroundColor: '#f9f9f9',
+          padding: '10px 20px',
+          borderRadius: '10px',
+          boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+          fontWeight: 'bold'
+        }}>
+          <div>Total: ₹{totalAmount.toLocaleString()}</div>
+          <div>Cash: ₹{totalCash.toLocaleString()}</div>
+          <div>Online: ₹{totalOnline.toLocaleString()}</div>
+        </div>
+      </div>
 
       {/* Filter Buttons */}
-      <div>
+      <div style={{ marginTop: '10px' }}>
         <button onClick={() => handleFilterChange('thisMonth')}>Bookings this month</button>
         <button onClick={() => handleFilterChange('unverifiedThisMonth')}>Unverified this month</button>
         <button onClick={() => handleFilterChange('all')}>Show all bookings</button>

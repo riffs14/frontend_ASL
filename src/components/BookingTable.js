@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { db } from '../firebase'; // Import db from the updated firebase.js
+import { db } from '../firebase'; // Import db from your firebase.js
 import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 
 const BookingTable = () => {
@@ -9,7 +9,9 @@ const BookingTable = () => {
   const [showDialog, setShowDialog] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
 
-  // Helper function to filter bookings for the current month
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+
   const isBookingThisMonth = (bookingDate) => {
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
@@ -17,14 +19,13 @@ const BookingTable = () => {
     return bookingDateObj.getMonth() === currentMonth && bookingDateObj.getFullYear() === currentYear;
   };
 
-  // Fetch the data from Firestore
   useEffect(() => {
     const fetchData = async () => {
       const bookingSnapshot = await getDocs(collection(db, 'bookings'));
       const studentSnapshot = await getDocs(collection(db, 'students'));
 
       const studentData = studentSnapshot.docs.reduce((acc, doc) => {
-        acc[doc.id] = doc.data(); // Store student data with student_id as the key
+        acc[doc.id] = doc.data();
         return acc;
       }, {});
 
@@ -32,52 +33,50 @@ const BookingTable = () => {
         const data = doc.data();
         const student = studentData[data.student_id];
         return {
-          id: doc.id, // Add booking ID
+          id: doc.id,
           booking_date: data.booking_date,
           amount: data.amount,
           cash: data.cash,
           online: data.online,
-          verified: data.verified, // Assuming the "verified" field is part of the booking data
+          verified: data.verified,
           student_name: student ? student.name : 'N/A',
           valid_upto: student ? student.valid_upto : 'N/A',
           shift_name: student ? student.shift_name : 'N/A',
-          student_account_name: data.student_account_name || '', // Directly reference the student_account_name from the bookings collection
+          student_account_name: data.student_account_name || '',
         };
       });
 
       setBookings(bookingData);
-      setFilteredBookings(bookingData); // Initially show all bookings
+      setFilteredBookings(bookingData);
     };
 
     fetchData();
   }, []);
 
-  // Handle button click to apply filters
   const handleFilterChange = (filterType) => {
     setFilter(filterType);
+    setFromDate('');
+    setToDate('');
 
     if (filterType === 'thisMonth') {
       setFilteredBookings(bookings.filter(booking => isBookingThisMonth(booking.booking_date)));
     } else if (filterType === 'unverifiedThisMonth') {
       setFilteredBookings(bookings.filter(booking => isBookingThisMonth(booking.booking_date) && booking.verified === 0));
     } else {
-      setFilteredBookings(bookings); // Show all bookings
+      setFilteredBookings(bookings);
     }
   };
 
-  // Open the dialog with booking details
   const handleVerifyClick = (booking) => {
     setSelectedBooking(booking);
-    setShowDialog(true);  // Show the dialog
+    setShowDialog(true);
   };
 
-  // Confirm verification and update the verified field
   const handleConfirmVerification = async () => {
     if (selectedBooking) {
       const bookingRef = doc(db, 'bookings', selectedBooking.id);
       await updateDoc(bookingRef, { verified: 1 });
 
-      // Update the local state to reflect the verification change
       setBookings(prevBookings =>
         prevBookings.map(booking =>
           booking.id === selectedBooking.id ? { ...booking, verified: 1 } : booking
@@ -89,7 +88,26 @@ const BookingTable = () => {
         )
       );
     }
-    setShowDialog(false); // Close the dialog after verification
+    setShowDialog(false);
+  };
+
+  const handleDateRangeFilter = () => {
+    if (!fromDate || !toDate) {
+      alert("Please select both 'From' and 'To' dates.");
+      return;
+    }
+
+    const from = new Date(fromDate);
+    const to = new Date(toDate);
+    to.setHours(23, 59, 59, 999); // include the full "to" date
+
+    const filtered = bookings.filter(booking => {
+      const bookingDate = new Date(booking.booking_date.split('/').reverse().join('-'));
+      return bookingDate >= from && bookingDate <= to;
+    });
+
+    setFilteredBookings(filtered);
+    setFilter('dateRange');
   };
 
   return (
@@ -103,11 +121,31 @@ const BookingTable = () => {
         <button onClick={() => handleFilterChange('all')}>Show all bookings</button>
       </div>
 
-      <table>
+      {/* Date Range Filter */}
+      <div style={{ marginTop: '10px' }}>
+        <label>From Date: </label>
+        <input
+          type="date"
+          value={fromDate}
+          onChange={(e) => setFromDate(e.target.value)}
+        />
+        <label style={{ marginLeft: '10px' }}>To Date: </label>
+        <input
+          type="date"
+          value={toDate}
+          onChange={(e) => setToDate(e.target.value)}
+        />
+        <button onClick={handleDateRangeFilter} style={{ marginLeft: '10px' }}>
+          Filter by Date Range
+        </button>
+      </div>
+
+      {/* Booking Table */}
+      <table style={{ marginTop: '20px', width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr>
             <th>Serial No.</th>
-            <th>Booking ID</th> {/* Added Booking ID column */}
+            <th>Booking ID</th>
             <th>Date</th>
             <th>Amount</th>
             <th>Cash</th>
@@ -116,15 +154,15 @@ const BookingTable = () => {
             <th>Valid Upto</th>
             <th>Shift</th>
             <th>Verified</th>
-            <th>Student Account Name</th> {/* Added this column */}
-            <th>Action</th> {/* Added Verify button column */}
+            <th>Student Account Name</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>
           {filteredBookings.map((booking, index) => (
             <tr key={booking.id}>
-              <td>{index + 1}</td> {/* Serial number starts from 1 */}
-              <td>{booking.id}</td> {/* Display Booking ID */}
+              <td>{index + 1}</td>
+              <td>{booking.id}</td>
               <td>{booking.booking_date}</td>
               <td>{booking.amount}</td>
               <td>{booking.cash}</td>
@@ -133,10 +171,10 @@ const BookingTable = () => {
               <td>{booking.valid_upto}</td>
               <td>{booking.shift_name}</td>
               <td>{booking.verified === 0 ? 'Unverified' : 'Verified'}</td>
-              <td>{booking.student_account_name || ''}</td> {/* Show student_account_name or empty string */}
+              <td>{booking.student_account_name || ''}</td>
               <td>
                 {booking.verified === 0 && (
-                  <button onClick={() => handleVerifyClick(booking)}>Verify</button> 
+                  <button onClick={() => handleVerifyClick(booking)}>Verify</button>
                 )}
               </td>
             </tr>
@@ -149,7 +187,7 @@ const BookingTable = () => {
         <div className="modal">
           <div className="modal-content">
             <h2>Confirm Verification</h2>
-            <p><strong>Booking ID:</strong> {selectedBooking.id}</p> {/* Display Booking ID in the dialog */}
+            <p><strong>Booking ID:</strong> {selectedBooking.id}</p>
             <p><strong>Booking Date:</strong> {selectedBooking.booking_date}</p>
             <p><strong>Amount:</strong> {selectedBooking.amount}</p>
             <p><strong>Cash:</strong> {selectedBooking.cash}</p>

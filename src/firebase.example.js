@@ -28,4 +28,4 @@ const auth = getAuth(app); // Firebase Authentication instance
 export { db, auth };
 
 
-// Thi
+// This is to be modified 
